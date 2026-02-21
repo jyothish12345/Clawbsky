@@ -62,6 +62,14 @@ clawbsky quote <uri> "text" [media...]   # Quote post
 clawbsky thread "post1" "post2"...       # Create thread
 ```
 
+### Moderation
+
+```bash
+clawbsky block <handle>           # Block a user
+clawbsky mute <handle>            # Mute a user
+clawbsky notifications -n 20      # All notifications (alias: n)
+```
+
 ### Engagement
 
 ```bash
@@ -142,4 +150,13 @@ Videos are automatically checked for aspect ratio:
 ```bash
 clawbsky post "Watch this" video.mp4
 # Output: Video: 1080x1920 (9:16) - Vertical video detected
+```
+
+## Handle Auto-completion
+
+Clawbsky automatically handles handle completion. If you provide a handle without a domain, it defaults to `.bsky.social`. It also ignores leading `@`.
+
+```bash
+clawbsky user @joy
+# Resolves to joy.bsky.social
 ```

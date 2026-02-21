@@ -5,9 +5,12 @@ Full-featured Bluesky CLI with powerful social media commands.
 ## Features
 
 - ✅ **Post** — text, images (up to 4), videos
-- ✅ **Read** — posts, threads, replies, profiles
-- ✅ **Timelines** — home, mentions, likes
+- ✅ **Engage** — reply, quote, like, repost, thread
+- ✅ **Moderate** — block, mute, notifications
+- ✅ **Graph** — follow/unfollow, followers/following, profile info
+- ✅ **Lists** — view your lists and list timelines
 - ✅ **Search** — posts and hashtags
+- ✅ **UX** — handle auto-completion (`@user` -> `user.bsky.social`)
 - ✅ **Engagement** — like, repost, reply, quote
 - ✅ **Social** — follow, unfollow, followers, following
 - ✅ **Lists** — manage and view list timelines
@@ -44,6 +47,15 @@ clawbsky user-posts <handle> -n 20  # User's posts
 clawbsky home -n 20              # Home timeline
 clawbsky mentions -n 10          # Your mentions
 clawbsky likes <handle> -n 10    # User's likes
+```
+
+### Mod & Graph
+```bash
+clawbsky notifications                   # View all interactions (alias: n)
+clawbsky block <handle>                  # Block user
+clawbsky mute <handle>                   # Mute user
+clawbsky follow <handle>                 # Follow
+clawbsky whoami                          # Show active account info
 ```
 
 ### Search
