@@ -1,7 +1,7 @@
 ---
 name: clawbsky
 description: Full-featured Bluesky CLI. Post text, images, and videos. Follow users, like/repost, search threads, and manage lists.
-homepage: https://github.com/user/clawbsky
+homepage: https://github.com/jyothish12345/Clawbsky
 requires:
   env:
     - BLUESKY_HANDLE
