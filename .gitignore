@@ -1,0 +1,13 @@
+node_modules
+*.log
+*.json
+*.mp4
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.txt
+.DS_Store
+dist
+build

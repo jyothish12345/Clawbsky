@@ -1,7 +1,14 @@
 ---
 name: clawbsky
-description: Full Bluesky CLI with X/Twitter-like commands. Read posts, timelines, search, post, reply, like, repost, follow, and manage lists. Use when you need to interact with Bluesky Social.
+description: Full-featured Bluesky CLI. Post text, images, and videos. Follow users, like/repost, search threads, and manage lists.
 homepage: https://github.com/user/clawbsky
+requires:
+  env:
+    - BLUESKY_HANDLE
+    - BLUESKY_APP_PASSWORD
+  bins:
+    - ffmpeg
+    - ffprobe
 ---
 
 # clawbsky
@@ -83,10 +90,10 @@ clawbsky list-timeline <list-id> -n 20  # Posts from a list
 ### Output Options
 
 ```bash
---json              # JSON output
---plain             # Plain text, no formatting
+--json              # JSON output for raw data piping
+--plain             # Plain text mode (removes emojis/formatting)
 -n <count>          # Number of results (default: 10)
---cursor <val>      # Pagination cursor
+--cursor <val>      # Pagination cursor for deep history
 ```
 
 ## Usage Examples

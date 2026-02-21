@@ -48,46 +48,58 @@ async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
     const { agent } = await import("./agent.ts");
     const fileBytes = fs.readFileSync(filePath);
 
-    // 1. Get service auth token scoped for upload
-    const pdsHost = agent.pdsUrl?.hostname ?? "bsky.social";
+    // 1. Get service auth token scoped for video upload service
     const serviceAuth = await agent.com.atproto.server.getServiceAuth({
-        aud: `did:web:${pdsHost}`,
-        lxm: "com.atproto.repo.uploadBlob",
+        aud: `did:web:video.bsky.app`,
+        lxm: "com.atproto.repo.uploadBlob", // Correct lexicon for blob upload via video service
         exp: Math.floor(Date.now() / 1000) + 60 * 30, // 30 min
     });
 
-    // 2. Upload video to the video service
-    const uploadUrl = new URL(
-        "https://video.bsky.app/xrpc/app.bsky.video.uploadVideo"
-    );
+    // 2. Upload video to the dedicated video service
+    const uploadUrl = new URL("https://video.bsky.app/xrpc/app.bsky.video.uploadVideo");
     uploadUrl.searchParams.set("did", agent.session!.did);
     uploadUrl.searchParams.set("name", path.basename(filePath));
 
-    const uploadRes = await fetch(uploadUrl.toString(), {
+    let uploadRes = await fetch(uploadUrl.toString(), {
         method: "POST",
         headers: {
             Authorization: `Bearer ${serviceAuth.data.token}`,
             "Content-Type": mime,
+            "Content-Length": fileBytes.length.toString(),
         },
         body: fileBytes,
     });
 
-    if (!uploadRes.ok) {
+    let jobId: string;
+    if (uploadRes.status === 409) {
+        const errorData = await uploadRes.json() as { jobId?: string };
+        if (errorData.jobId) {
+            jobId = errorData.jobId;
+            console.log(`Video already exists/uploading, resuming (job: ${jobId})...`);
+        } else {
+            throw new Error(`Video upload conflict but no jobId returned`);
+        }
+    } else if (!uploadRes.ok) {
         throw new Error(`Video upload failed: ${uploadRes.status} ${await uploadRes.text()}`);
+    } else {
+        const uploadData = (await uploadRes.json()) as { jobId: string };
+        jobId = uploadData.jobId;
+        console.log(`Video uploaded, processing (job: ${jobId})...`);
     }
 
-    const uploadData = (await uploadRes.json()) as { jobId: string };
-    console.log(`Video uploaded, processing (job: ${uploadData.jobId})...`);
-
-    // 3. Poll job status until complete
+    // 3. Poll job status until complete (calling video.bsky.app directly)
     let blob: BlobRef | undefined;
     for (let i = 0; i < 120; i++) {
         await new Promise((r) => setTimeout(r, 2000));
 
-        const statusRes = await agent.app.bsky.video.getJobStatus({
-            jobId: uploadData.jobId,
+        const statusRes = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.getJobStatus?jobId=${jobId}`, {
+            headers: { Authorization: `Bearer ${serviceAuth.data.token}` }
         });
-        const job = statusRes.data.jobStatus;
+
+        if (!statusRes.ok) continue;
+
+        const statusData = await statusRes.json() as any;
+        const job = statusData.jobStatus;
 
         if (job.state === "JOB_STATE_COMPLETED" && job.blob) {
             blob = job.blob;
@@ -97,7 +109,6 @@ async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
             throw new Error(`Video processing failed: ${job.error ?? "unknown error"}`);
         }
 
-        // Still processing — show progress
         if (i % 5 === 0) {
             console.log(`  still processing... (${job.state})`);
         }
