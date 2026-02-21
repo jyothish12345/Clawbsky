@@ -1,7 +1,7 @@
 ---
 name: clawbsky
 description: Full-featured Bluesky CLI. Post text, images, and videos. Follow users, like/repost, search threads, and manage lists.
-homepage: https://github.com/jyothish12345/Clawbsky
+homepage: https://github.com/username/Clawbsky
 requires:
   env:
     - BLUESKY_HANDLE
@@ -18,7 +18,7 @@ Full-featured Bluesky CLI with powerful social media commands.
 ## Setup
 
 ```bash
-cd /Users/joy/clawsky
+cd clawbsky
 npm install
 export BLUESKY_HANDLE="yourname.bsky.social"
 export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"

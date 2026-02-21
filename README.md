@@ -19,7 +19,7 @@ Full-featured Bluesky CLI with powerful social media commands.
 ## Quick Start
 
 ```bash
-cd /Users/joy/clawsky
+cd clawbsky
 npm install
 export BLUESKY_HANDLE="yourname.bsky.social"
 export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
