@@ -62,12 +62,13 @@ clawbsky quote <uri> "text" [media...]   # Quote post
 clawbsky thread "post1" "post2"...       # Create thread
 ```
 
-### Moderation
+### Moderation & Growth
 
 ```bash
 clawbsky block <handle>           # Block a user
 clawbsky mute <handle>            # Mute a user
 clawbsky notifications -n 20      # All notifications (alias: n)
+clawbsky follow-all "AI Enthusiast" # Search and follow matching users automatically
 ```
 
 ### Engagement

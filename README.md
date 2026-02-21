@@ -55,6 +55,7 @@ clawbsky notifications                   # View all interactions (alias: n)
 clawbsky block <handle>                  # Block user
 clawbsky mute <handle>                   # Mute user
 clawbsky follow <handle>                 # Follow
+clawbsky follow-all "AI Enthusiast"     # Search and follow everyone matching
 clawbsky whoami                          # Show active account info
 ```
 

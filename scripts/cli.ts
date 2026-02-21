@@ -322,6 +322,7 @@ MODERATION:
 MISC:
   clawbsky whoami                   Show current session info
   clawbsky follow-domain -n 50      Auto-follow users from your domain
+  clawbsky follow-all "query" -n 20   Search and follow all matching users
 
 LISTS:
   clawbsky lists                   Your lists
@@ -1016,20 +1017,8 @@ async function cmdWhoAmI(): Promise<void> {
     console.log(`Email: ${agent.session!.email || "N/A"}`);
 }
 
-async function cmdAutoFollowDomain(args: string[], opts: GlobalOpts): Promise<void> {
-    const { agent, login } = await import("./agent.ts");
-    await login();
-
-    const myHandle = agent.session!.handle;
-    const parts = myHandle.split(".");
-    if (parts.length < 2) {
-        console.error("Handle has no domain.");
-        process.exit(1);
-    }
-    const domain = parts.slice(1).join(".");
-    const target = opts.count || 50;
-
-    console.log(`Auto-following up to ${target} users from @${domain}...`);
+async function autoFollow(agent: any, query: string, target: number): Promise<void> {
+    console.log(`Auto-following up to ${target} users for "${query}"...`);
 
     let followed = 0;
     let cursor: string | undefined;
@@ -1037,7 +1026,7 @@ async function cmdAutoFollowDomain(args: string[], opts: GlobalOpts): Promise<vo
     try {
         while (followed < target) {
             const res = await agent.searchActors({
-                term: domain,
+                term: query,
                 limit: 50,
                 cursor,
             });
@@ -1066,6 +1055,46 @@ async function cmdAutoFollowDomain(args: string[], opts: GlobalOpts): Promise<vo
             if (!cursor) break;
         }
         console.log(`Done! Followed ${followed} users.`);
+    } catch (err) {
+        throw err;
+    }
+}
+
+async function cmdAutoFollowDomain(args: string[], opts: GlobalOpts): Promise<void> {
+    const { agent, login } = await import("./agent.ts");
+    await login();
+
+    const myHandle = agent.session!.handle;
+    const parts = myHandle.split(".");
+    if (parts.length < 2) {
+        console.error("Handle has no domain.");
+        process.exit(1);
+    }
+    const domain = parts.slice(1).join(".");
+    const target = opts.count || 50;
+
+    try {
+        await autoFollow(agent, domain, target);
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        process.exit(1);
+    }
+}
+
+async function cmdFollowAll(args: string[], opts: GlobalOpts): Promise<void> {
+    const query = args[0];
+    if (!query) {
+        console.error("Usage: clawbsky follow-all <query> [-n count]");
+        process.exit(1);
+    }
+
+    const { agent, login } = await import("./agent.ts");
+    await login();
+
+    const target = opts.count || 20;
+
+    try {
+        await autoFollow(agent, query, target);
     } catch (err) {
         console.error(`Error: ${err}`);
         process.exit(1);
@@ -1479,6 +1508,7 @@ async function main() {
             case "unmute": await cmdUnmute(remaining); break;
             case "whoami": await cmdWhoAmI(); break;
             case "follow-domain": await cmdAutoFollowDomain(remaining, opts); break;
+            case "follow-all": await cmdFollowAll(remaining, opts); break;
             case "lists": await cmdLists(remaining, opts); break;
             case "list-timeline": await cmdListTimeline(remaining, opts); break;
             case "add":
