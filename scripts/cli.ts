@@ -456,11 +456,19 @@ async function cmdUser(args: string[], opts: GlobalOpts): Promise<void> {
         }
 
         const p = profile.data;
+        const postsLabel = opts.plain ? "posts" : "📝";
+        const followersLabel = opts.plain ? "followers" : "👥";
+        const followingLabel = opts.plain ? "following" : "following";
+
         console.log(`@${p.handle}`);
         console.log(`${p.displayName || ""}`);
         console.log(`${p.description || ""}`);
-        console.log(`\n📝 ${p.postsCount} posts | 👥 ${p.followersCount} followers | following ${p.followsCount}`);
-        console.log(`🔗 ${p.joinedAt ? `Joined ${p.joinedAt}` : ""}`);
+        if (opts.plain) {
+            console.log(`\n${p.postsCount} ${postsLabel} | ${p.followersCount} ${followersLabel} | following ${p.followsCount}`);
+        } else {
+            console.log(`\n${postsLabel} ${p.postsCount} posts | ${followersLabel} ${p.followersCount} followers | following ${p.followsCount}`);
+        }
+        console.log(`${opts.plain ? "Link:" : "🔗"} ${p.joinedAt ? `Joined ${p.joinedAt}` : ""}`);
     } catch (err) {
         console.error(`Error: ${err}`);
         process.exit(1);
@@ -492,7 +500,11 @@ async function cmdUserPosts(args: string[], opts: GlobalOpts): Promise<void> {
             const record = post.record as AppBskyFeedPost.Record;
             console.log(`@${author.handle}:`);
             console.log(`  ${record.text}`);
-            console.log(`  🔁 ${post.repostCount} | ❤️ ${post.likeCount} | 💬 ${post.replyCount}`);
+            if (opts.plain) {
+                console.log(`  Reposts: ${post.repostCount} | Likes: ${post.likeCount} | Replies: ${post.replyCount}`);
+            } else {
+                console.log(`  🔁 ${post.repostCount} | ❤️ ${post.likeCount} | 💬 ${post.replyCount}`);
+            }
             console.log("");
         }
     } catch (err) {
