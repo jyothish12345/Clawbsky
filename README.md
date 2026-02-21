@@ -54,7 +54,7 @@ clawbsky search "#hashtag"       # Search hashtags
 
 ### Posting
 ```bash
-clawbsky add "text" [media...]           # New post
+clawbsky post "text" [media...]           # New post
 clawbsky reply <uri> "text"            # Reply
 clawbsky quote <uri> "text" [media...] # Quote
 clawbsky thread "p1" "p2" "p3"...     # Thread
@@ -99,7 +99,7 @@ clawbsky search "AI news"
 clawbsky like at://did:plc:xxx/app.bsky.feed.post/xxx
 clawbsky follow joy.bsky.social
 clawbsky thread "First post" "Second post" "Third!"
-clawbsky add "Sunset!" sunset.jpg --alt "Beautiful orange sunset"
+clawbsky post "Sunset!" sunset.jpg --alt "Beautiful orange sunset"
 clawbsky reply at://... "Great take!"
 ```
 

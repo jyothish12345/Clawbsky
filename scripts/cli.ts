@@ -284,7 +284,7 @@ SEARCH:
   clawbsky search "#hashtag"       Search hashtags
 
 POSTING:
-  clawbsky add "text" [media...]           Create a post
+  clawbsky post "text" [media...]          Create a post
   clawbsky reply <uri> "text"              Reply to a post
   clawbsky quote <uri> "text" [media...]   Quote post
   clawbsky thread "post1" "post2"...       Create thread
@@ -951,9 +951,8 @@ async function cmdListTimeline(args: string[], opts: GlobalOpts): Promise<void> 
     }
 }
 
-// ── CMD: Add (Post) ─────────────────────────────────────────
-
-async function cmdAdd(args: string[]): Promise<void> {
+// ── CMD: Post ───────────────────────────────────────────────
+async function cmdPost(args: string[]): Promise<void> {
     const dryRun = args.includes("--dry-run");
     const altIndex = args.indexOf("--alt");
     const altVideoIndex = args.indexOf("--alt-video");
@@ -972,7 +971,7 @@ async function cmdAdd(args: string[]): Promise<void> {
 
     const text = filtered[0];
     if (!text) {
-        console.error('Usage: clawbsky add <TEXT> [MEDIA...] [--dry-run] [--alt "desc"]');
+        console.error('Usage: clawbsky post <TEXT> [MEDIA...] [--dry-run] [--alt "desc"]');
         process.exit(1);
     }
 
@@ -1233,7 +1232,8 @@ async function main() {
             case "following": await cmdFollowing(remaining, opts); break;
             case "lists": await cmdLists(remaining, opts); break;
             case "list-timeline": await cmdListTimeline(remaining, opts); break;
-            case "add": await cmdAdd(remaining); break;
+            case "add":
+            case "post": await cmdPost(remaining); break;
             case "reply": await cmdReply(remaining); break;
             case "quote": await cmdQuote(remaining); break;
             case "thread-posts": await cmdThreadPosts(remaining); break;

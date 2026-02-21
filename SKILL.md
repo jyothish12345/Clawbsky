@@ -56,7 +56,7 @@ clawbsky search "#hashtag"       # Search hashtags
 ### Posting
 
 ```bash
-clawbsky add "text" [media...]           # Create a post
+clawbsky post "text" [media...]           # Create a post
 clawbsky reply <uri> "text"              # Reply to a post
 clawbsky quote <uri> "text" [media...]   # Quote post
 clawbsky thread "post1" "post2"...       # Create thread
@@ -118,7 +118,7 @@ clawbsky follow joy.bsky.social
 clawbsky thread "First post" "Second post" "Third post!"
 
 # Post with image
-clawbsky add "Check this out!" photo.jpg --alt "Description"
+clawbsky post "Check this out!" photo.jpg --alt "Description"
 
 # Reply to a post
 clawbsky reply at://... "Great post!"
@@ -132,7 +132,7 @@ clawbsky quote at://... "My thoughts" screenshot.png
 @mentions and links are automatically detected and made clickable:
 
 ```bash
-clawbsky add "@joy.bsky.social check this! https://bsky.app"
+clawbsky post "@joy.bsky.social check this! https://bsky.app"
 ```
 
 ## Video Aspect Ratio
@@ -140,6 +140,6 @@ clawbsky add "@joy.bsky.social check this! https://bsky.app"
 Videos are automatically checked for aspect ratio:
 
 ```bash
-clawbsky add "Watch this" video.mp4
+clawbsky post "Watch this" video.mp4
 # Output: Video: 1080x1920 (9:16) - Vertical video detected
 ```
