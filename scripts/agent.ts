@@ -1,4 +1,4 @@
-import { AtpAgent } from "@atproto/api";
+import { BskyAgent } from "@atproto/api";
 
 const handle = process.env.BLUESKY_HANDLE;
 const password = process.env.BLUESKY_APP_PASSWORD;
@@ -11,7 +11,7 @@ if (!handle || !password) {
     process.exit(1);
 }
 
-const agent = new AtpAgent({ service: "https://bsky.social" });
+const agent = new BskyAgent({ service: "https://bsky.social" });
 await agent.login({ identifier: handle, password });
 
 export { agent };

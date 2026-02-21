@@ -133,9 +133,8 @@ async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
     const { agent } = await import("./agent.ts");
     const fileBytes = fs.readFileSync(filePath);
 
-    const pdsHost = agent.pdsUrl?.hostname ?? "bsky.social";
     const serviceAuth = await agent.com.atproto.server.getServiceAuth({
-        aud: `did:web:${pdsHost}`,
+        aud: `did:web:video.bsky.app`,
         lxm: "com.atproto.repo.uploadBlob",
         exp: Math.floor(Date.now() / 1000) + 60 * 30,
     });
@@ -144,24 +143,75 @@ async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
     uploadUrl.searchParams.set("did", agent.session!.did);
     uploadUrl.searchParams.set("name", path.basename(filePath));
 
-    const uploadRes = await fetch(uploadUrl.toString(), {
+    let uploadRes = await fetch(uploadUrl.toString(), {
         method: "POST",
-        headers: { Authorization: `Bearer ${serviceAuth.data.token}`, "Content-Type": mime },
+        headers: {
+            Authorization: `Bearer ${serviceAuth.data.token}`,
+            "Content-Type": mime,
+            "Content-Length": fileBytes.length.toString(),
+        },
         body: fileBytes,
     });
 
-    if (!uploadRes.ok) {
-        throw new Error(`Video upload failed: ${uploadRes.status}`);
+    let jobId: string;
+    if (uploadRes.status === 409) {
+        const errorData = await uploadRes.json() as { jobId?: string };
+        if (errorData.jobId) {
+            jobId = errorData.jobId;
+            console.log(`Video already exists/uploading, resuming (job: ${jobId})...`);
+        } else {
+            throw new Error(`Video upload conflict but no jobId returned`);
+        }
+    } else if (!uploadRes.ok) {
+        // Fallback: try PDS audience if video.bsky.app audience failed with 401
+        if (uploadRes.status === 401) {
+            const pdsHost = agent.pdsUrl?.hostname ?? "bsky.social";
+            const fallbackAuth = await agent.com.atproto.server.getServiceAuth({
+                aud: `did:web:${pdsHost}`,
+                lxm: "com.atproto.repo.uploadBlob",
+                exp: Math.floor(Date.now() / 1000) + 60 * 30,
+            });
+            uploadRes = await fetch(uploadUrl.toString(), {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${fallbackAuth.data.token}`,
+                    "Content-Type": mime,
+                    "Content-Length": fileBytes.length.toString(),
+                },
+                body: fileBytes,
+            });
+            if (uploadRes.status === 409) {
+                const errorData = await uploadRes.json() as { jobId?: string };
+                jobId = errorData.jobId!;
+            } else if (!uploadRes.ok) {
+                throw new Error(`Video upload failed: ${uploadRes.status}`);
+            } else {
+                const uploadData = await uploadRes.json() as { jobId: string };
+                jobId = uploadData.jobId;
+            }
+        } else {
+            throw new Error(`Video upload failed: ${uploadRes.status}`);
+        }
+    } else {
+        const uploadData = await uploadRes.json() as { jobId: string };
+        jobId = uploadData.jobId;
     }
 
-    const uploadData = (await uploadRes.json()) as { jobId: string };
-    console.log(`Video uploaded, processing (job: ${uploadData.jobId})...`);
+    console.log(`Video upload confirmed, processing (job: ${jobId})...`);
 
     let blob: BlobRef | undefined;
     for (let i = 0; i < 120; i++) {
         await new Promise((r) => setTimeout(r, 2000));
-        const statusRes = await agent.app.bsky.video.getJobStatus({ jobId: uploadData.jobId });
-        const job = statusRes.data.jobStatus;
+
+        // Need to call getJobStatus on the video service, not the PDS
+        const statusRes = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.getJobStatus?jobId=${jobId}`, {
+            headers: { Authorization: `Bearer ${serviceAuth.data.token}` }
+        });
+
+        if (!statusRes.ok) continue; // Skip if poll fails temporarily
+
+        const statusData = await statusRes.json() as any;
+        const job = statusData.jobStatus;
         if (job.state === "JOB_STATE_COMPLETED" && job.blob) {
             blob = job.blob;
             break;
@@ -281,12 +331,12 @@ async function cmdRead(args: string[], opts: GlobalOpts): Promise<void> {
     try {
         // Use getPosts with array of URIs
         const posts = await agent.getPosts({ uris: [uri] });
-        
+
         if (posts.data.posts.length === 0) {
             console.error("Post not found");
             process.exit(1);
         }
-        
+
         const post = posts.data.posts[0];
         const record = post.record as AppBskyFeedPost.Record;
         const author = post.author;
@@ -389,7 +439,7 @@ async function cmdReplies(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: User ─────────────────────────────────────────────
 
 async function cmdUser(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "").replace(".bsky.social", "");
+    const handle = args[0]?.replace("@", "");
     if (!handle) {
         console.error("Usage: clawbsky user <handle>");
         process.exit(1);
@@ -420,7 +470,7 @@ async function cmdUser(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: User Posts ─────────────────────────────────────────
 
 async function cmdUserPosts(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "").replace(".bsky.social", "");
+    const handle = args[0]?.replace("@", "");
     if (!handle) {
         console.error("Usage: clawbsky user-posts <handle> [-n count]");
         process.exit(1);
@@ -515,7 +565,7 @@ async function cmdMentions(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: Likes ─────────────────────────────────────────────
 
 async function cmdLikes(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "").replace(".bsky.social", "");
+    const handle = args[0]?.replace("@", "");
     if (!handle) {
         console.error("Usage: clawbsky likes <handle> [-n count]");
         process.exit(1);
@@ -619,16 +669,20 @@ async function cmdUnlike(args: string[]): Promise<void> {
     const { agent } = await import("./agent.ts");
 
     try {
-        // Get the post to retrieve CID
+        // Get the post to retrieve the like URI
         const posts = await agent.getPosts({ uris: [uri] });
         if (posts.data.posts.length === 0) {
             console.error("Post not found");
             process.exit(1);
         }
-        // Use deleteLike - need to track the like URI
-        // For now, just confirm the unlike action
-        console.log(`Note: To unlike, please use the like URI directly`);
-        console.log(`✅ Unlike request received for: ${uri}`);
+        const post = posts.data.posts[0];
+        const likeUri = post.viewer?.like;
+        if (!likeUri) {
+            console.error("You haven't liked this post or like info not found.");
+            process.exit(1);
+        }
+        await agent.deleteLike(likeUri);
+        console.log(`✅ Unliked: ${uri}`);
     } catch (err) {
         console.error(`Error: ${err}`);
         process.exit(1);
@@ -674,16 +728,20 @@ async function cmdUnrepost(args: string[]): Promise<void> {
     const { agent } = await import("./agent.ts");
 
     try {
-        // Get the post to retrieve CID
+        // Get the post to retrieve the repost URI
         const posts = await agent.getPosts({ uris: [uri] });
         if (posts.data.posts.length === 0) {
             console.error("Post not found");
             process.exit(1);
         }
-        // Use deleteRepost - need to track the repost URI
-        // For now, just confirm the unrepost action
-        console.log(`Note: To unrepost, please use the repost URI directly`);
-        console.log(`✅ Unrepost request received for: ${uri}`);
+        const post = posts.data.posts[0];
+        const repostUri = post.viewer?.repost;
+        if (!repostUri) {
+            console.error("You haven't reposted this or repost info not found.");
+            process.exit(1);
+        }
+        await agent.deleteRepost(repostUri);
+        console.log(`✅ Unreposted: ${uri}`);
     } catch (err) {
         console.error(`Error: ${err}`);
         process.exit(1);
@@ -693,7 +751,7 @@ async function cmdUnrepost(args: string[]): Promise<void> {
 // ── CMD: Follow ─────────────────────────────────────────────
 
 async function cmdFollow(args: string[]): Promise<void> {
-    const handle = args[0]?.replace("@", "").replace(".bsky.social", "");
+    const handle = args[0]?.replace("@", "");
     if (!handle) {
         console.error("Usage: clawbsky follow <handle>");
         process.exit(1);
@@ -713,7 +771,7 @@ async function cmdFollow(args: string[]): Promise<void> {
 // ── CMD: Unfollow ─────────────────────────────────────────────
 
 async function cmdUnfollow(args: string[]): Promise<void> {
-    const handle = args[0]?.replace("@", "").replace(".bsky.social", "");
+    const handle = args[0]?.replace("@", "");
     if (!handle) {
         console.error("Usage: clawbsky unfollow <handle>");
         process.exit(1);
@@ -722,7 +780,22 @@ async function cmdUnfollow(args: string[]): Promise<void> {
     const { agent } = await import("./agent.ts");
 
     try {
-        await agent.unfollow(handle);
+        const profile = await agent.getProfile({ actor: handle });
+        const followUri = profile.data.viewer?.following;
+        if (!followUri) {
+            console.error(`You are not following @${handle}`);
+            process.exit(1);
+        }
+
+        // deleteFollow is sometimes not on BskyAgent directly, use low level
+        const rkey = followUri.split("/").pop();
+        if (!rkey) throw new Error("Invalid follow URI");
+
+        await agent.app.bsky.graph.follow.delete({
+            repo: agent.session!.did,
+            rkey: rkey
+        });
+
         console.log(`✅ Unfollowed @${handle}`);
     } catch (err) {
         console.error(`Error: ${err}`);
@@ -733,7 +806,7 @@ async function cmdUnfollow(args: string[]): Promise<void> {
 // ── CMD: Followers ─────────────────────────────────────────
 
 async function cmdFollowers(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "").replace(".bsky.social", "");
+    const handle = args[0]?.replace("@", "");
     if (!handle) {
         console.error("Usage: clawbsky followers <handle> [-n count]");
         process.exit(1);
@@ -762,7 +835,7 @@ async function cmdFollowers(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: Following ─────────────────────────────────────────
 
 async function cmdFollowing(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "").replace(".bsky.social", "");
+    const handle = args[0]?.replace("@", "");
     if (!handle) {
         console.error("Usage: clawbsky following <handle> [-n count]");
         process.exit(1);
@@ -794,7 +867,7 @@ async function cmdLists(args: string[], opts: GlobalOpts): Promise<void> {
     const { agent } = await import("./agent.ts");
 
     try {
-        const lists = await agent.listLists();
+        const lists = await agent.app.bsky.graph.getLists({ actor: agent.session!.did });
 
         if (opts.json) {
             console.log(JSON.stringify(lists.data.lists, null, 2));
@@ -802,6 +875,9 @@ async function cmdLists(args: string[], opts: GlobalOpts): Promise<void> {
         }
 
         console.log("Your lists:");
+        if (lists.data.lists.length === 0) {
+            console.log("No lists found.");
+        }
         for (const list of lists.data.lists) {
             console.log(`- ${list.name} (${list.uri})`);
         }
@@ -823,7 +899,7 @@ async function cmdListTimeline(args: string[], opts: GlobalOpts): Promise<void> 
     const { agent } = await import("./agent.ts");
 
     try {
-        const posts = await agent.getListTimeline({ list: listUri, limit: opts.count });
+        const posts = await agent.app.bsky.feed.getListFeed({ list: listUri, limit: opts.count });
 
         if (opts.json) {
             console.log(JSON.stringify(posts.data.feed, null, 2));
@@ -947,17 +1023,24 @@ async function cmdReply(args: string[]): Promise<void> {
     const { agent } = await import("./agent.ts");
     const rich = parseRichText(text);
 
-    const record: Partial<AppBskyFeedPost.Record> = {
-        text: rich.text,
-        facets: rich.facets,
-        createdAt: new Date().toISOString(),
-        reply: {
-            root: { uri, cid: "" },
-            parent: { uri, cid: "" },
-        },
-    };
-
     try {
+        const posts = await agent.getPosts({ uris: [uri] });
+        if (posts.data.posts.length === 0) {
+            console.error("Post not found");
+            process.exit(1);
+        }
+        const post = posts.data.posts[0];
+        const parentRecord = post.record as AppBskyFeedPost.Record;
+        const root = parentRecord.reply?.root || { uri: post.uri, cid: post.cid };
+        const parent = { uri: post.uri, cid: post.cid };
+
+        const record: Partial<AppBskyFeedPost.Record> = {
+            text: rich.text,
+            facets: rich.facets,
+            createdAt: new Date().toISOString(),
+            reply: { root, parent },
+        };
+
         const res = await agent.post(record as AppBskyFeedPost.Record);
         console.log(`✅ Replied: ${res.uri}`);
     } catch (err) {
@@ -1044,19 +1127,24 @@ async function cmdThreadPosts(args: string[]): Promise<void> {
 
         if (parentUri && parentCid) {
             record.reply = {
-                root: { uri: postedUris[0], cid: parentCid },
+                root: { uri: postedUris[0], cid: postedUris[1] },
                 parent: { uri: parentUri, cid: parentCid },
             };
         }
 
         try {
             const res = await agent.post(record as AppBskyFeedPost.Record);
-            postedUris.push(res.uri);
-            
+            if (i === 0) {
+                postedUris.push(res.uri);
+            }
+
             // Get the CID of the post we just created
             const posts = await agent.getPosts({ uris: [res.uri] });
             parentCid = posts.data.posts[0].cid;
-            
+            if (i === 0) {
+                postedUris.push(parentCid); // Store root cid at index 1 conceptually. We'll track root CID separately.
+            }
+
             parentUri = res.uri;
             console.log(`✅ Post ${i + 1}/${args.length}: ${res.uri}`);
         } catch (err) {
@@ -1081,36 +1169,35 @@ if (subcommand === "--help" || subcommand === "-h" || !subcommand) {
 const { opts, remaining } = parseGlobalOpts(rest);
 
 switch (subcommand) {
-    case "read": cmdRead(remaining, opts); break;
-    case "thread": 
-        // If first arg looks like a URI, read thread; otherwise create thread
+    case "read": await cmdRead(remaining, opts); break;
+    case "thread":
         if (remaining[0]?.startsWith("at://")) {
-            cmdThread(remaining, opts);
+            await cmdThread(remaining, opts);
         } else {
-            cmdThreadPosts(remaining);
+            await cmdThreadPosts(remaining);
         }
         break;
-    case "replies": cmdReplies(remaining, opts); break;
-    case "user": cmdUser(remaining, opts); break;
-    case "user-posts": cmdUserPosts(remaining, opts); break;
-    case "home": cmdHome(remaining, opts); break;
-    case "mentions": cmdMentions(remaining, opts); break;
-    case "likes": cmdLikes(remaining, opts); break;
-    case "search": cmdSearch(remaining, opts); break;
-    case "like": cmdLike(remaining); break;
-    case "unlike": cmdUnlike(remaining); break;
-    case "repost": cmdRepost(remaining); break;
-    case "unrepost": cmdUnrepost(remaining); break;
-    case "follow": cmdFollow(remaining); break;
-    case "unfollow": cmdUnfollow(remaining); break;
-    case "followers": cmdFollowers(remaining, opts); break;
-    case "following": cmdFollowing(remaining, opts); break;
-    case "lists": cmdLists(remaining, opts); break;
-    case "list-timeline": cmdListTimeline(remaining, opts); break;
-    case "add": cmdAdd(remaining); break;
-    case "reply": cmdReply(remaining); break;
-    case "quote": cmdQuote(remaining); break;
-    case "thread-posts": cmdThreadPosts(remaining); break;
+    case "replies": await cmdReplies(remaining, opts); break;
+    case "user": await cmdUser(remaining, opts); break;
+    case "user-posts": await cmdUserPosts(remaining, opts); break;
+    case "home": await cmdHome(remaining, opts); break;
+    case "mentions": await cmdMentions(remaining, opts); break;
+    case "likes": await cmdLikes(remaining, opts); break;
+    case "search": await cmdSearch(remaining, opts); break;
+    case "like": await cmdLike(remaining); break;
+    case "unlike": await cmdUnlike(remaining); break;
+    case "repost": await cmdRepost(remaining); break;
+    case "unrepost": await cmdUnrepost(remaining); break;
+    case "follow": await cmdFollow(remaining); break;
+    case "unfollow": await cmdUnfollow(remaining); break;
+    case "followers": await cmdFollowers(remaining, opts); break;
+    case "following": await cmdFollowing(remaining, opts); break;
+    case "lists": await cmdLists(remaining, opts); break;
+    case "list-timeline": await cmdListTimeline(remaining, opts); break;
+    case "add": await cmdAdd(remaining); break;
+    case "reply": await cmdReply(remaining); break;
+    case "quote": await cmdQuote(remaining); break;
+    case "thread-posts": await cmdThreadPosts(remaining); break;
     default:
         console.error(`Unknown command: ${subcommand}`);
         printHelp();
