@@ -130,7 +130,8 @@ function parseRichText(text: string): { text: string; facets?: RichText["facets"
 // ── Video upload ───────────────────────────────────────────────
 
 async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
     const fileBytes = fs.readFileSync(filePath);
 
     const serviceAuth = await agent.com.atproto.server.getServiceAuth({
@@ -228,7 +229,8 @@ async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
 // ── Image upload ───────────────────────────────────────────────
 
 async function uploadImage(filePath: string, mime: string): Promise<BlobRef> {
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
     const fileBytes = fs.readFileSync(filePath);
     const response = await agent.uploadBlob(fileBytes, { encoding: mime });
     return response.data.blob;
@@ -326,7 +328,8 @@ async function cmdRead(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         // Use getPosts with array of URIs
@@ -365,7 +368,8 @@ async function cmdThread(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const thread = await agent.getPostThread({ uri, depth: 10 });
@@ -406,7 +410,8 @@ async function cmdReplies(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const posts = await agent.getPostThread({ uri, depth: 1 });
@@ -445,7 +450,8 @@ async function cmdUser(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const profile = await agent.getProfile({ actor: handle });
@@ -484,7 +490,8 @@ async function cmdUserPosts(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const posts = await agent.getAuthorFeed({ actor: handle, limit: opts.count });
@@ -516,7 +523,8 @@ async function cmdUserPosts(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: Home Timeline ─────────────────────────────────────────
 
 async function cmdHome(args: string[], opts: GlobalOpts): Promise<void> {
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const timeline = await agent.getTimeline({ limit: opts.count, cursor: opts.cursor });
@@ -548,7 +556,8 @@ async function cmdHome(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: Mentions ─────────────────────────────────────────
 
 async function cmdMentions(args: string[], opts: GlobalOpts): Promise<void> {
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const notifications = await agent.listNotifications({ limit: opts.count });
@@ -583,7 +592,8 @@ async function cmdLikes(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const likes = await agent.getActorLikes({ actor: handle, limit: opts.count });
@@ -616,7 +626,8 @@ async function cmdSearch(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         // Use app.bsky.feed.searchPosts directly
@@ -651,7 +662,8 @@ async function cmdLike(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         // Get the post to retrieve CID
@@ -678,7 +690,8 @@ async function cmdUnlike(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         // Get the post to retrieve the like URI
@@ -710,7 +723,8 @@ async function cmdRepost(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         // Get the post to retrieve CID
@@ -737,7 +751,8 @@ async function cmdUnrepost(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         // Get the post to retrieve the repost URI
@@ -769,7 +784,8 @@ async function cmdFollow(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         await agent.follow(handle);
@@ -789,7 +805,8 @@ async function cmdUnfollow(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const profile = await agent.getProfile({ actor: handle });
@@ -824,7 +841,8 @@ async function cmdFollowers(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const followers = await agent.getFollowers({ actor: handle, limit: opts.count });
@@ -853,7 +871,8 @@ async function cmdFollowing(args: string[], opts: GlobalOpts): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const following = await agent.getFollows({ actor: handle, limit: opts.count });
@@ -876,7 +895,8 @@ async function cmdFollowing(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: Lists ─────────────────────────────────────────────
 
 async function cmdLists(args: string[], opts: GlobalOpts): Promise<void> {
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const lists = await agent.app.bsky.graph.getLists({ actor: agent.session!.did });
@@ -908,7 +928,8 @@ async function cmdListTimeline(args: string[], opts: GlobalOpts): Promise<void> 
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
 
     try {
         const posts = await agent.app.bsky.feed.getListFeed({ list: listUri, limit: opts.count });
@@ -989,7 +1010,8 @@ async function cmdAdd(args: string[]): Promise<void> {
         return;
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
     const rich = parseRichText(text);
 
     const record: Partial<AppBskyFeedPost.Record> = {
@@ -1032,7 +1054,8 @@ async function cmdReply(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
     const rich = parseRichText(text);
 
     try {
@@ -1073,7 +1096,8 @@ async function cmdQuote(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
     const rich = parseRichText(text);
 
     // Get the quoted post
@@ -1122,7 +1146,8 @@ async function cmdThreadPosts(args: string[]): Promise<void> {
         process.exit(1);
     }
 
-    const { agent } = await import("./agent.ts");
+    const { agent, login } = await import("./agent.ts");
+    await login();
     const postedUris: string[] = [];
     let parentUri: string | undefined;
     let parentCid: string | undefined;
@@ -1178,40 +1203,49 @@ if (subcommand === "--help" || subcommand === "-h" || !subcommand) {
     process.exit(0);
 }
 
-const { opts, remaining } = parseGlobalOpts(rest);
+async function main() {
+    const { opts, remaining } = parseGlobalOpts(rest);
 
-switch (subcommand) {
-    case "read": await cmdRead(remaining, opts); break;
-    case "thread":
-        if (remaining[0]?.startsWith("at://")) {
-            await cmdThread(remaining, opts);
-        } else {
-            await cmdThreadPosts(remaining);
+    try {
+        switch (subcommand) {
+            case "read": await cmdRead(remaining, opts); break;
+            case "thread":
+                if (remaining[0]?.startsWith("at://")) {
+                    await cmdThread(remaining, opts);
+                } else {
+                    await cmdThreadPosts(remaining);
+                }
+                break;
+            case "replies": await cmdReplies(remaining, opts); break;
+            case "user": await cmdUser(remaining, opts); break;
+            case "user-posts": await cmdUserPosts(remaining, opts); break;
+            case "home": await cmdHome(remaining, opts); break;
+            case "mentions": await cmdMentions(remaining, opts); break;
+            case "likes": await cmdLikes(remaining, opts); break;
+            case "search": await cmdSearch(remaining, opts); break;
+            case "like": await cmdLike(remaining); break;
+            case "unlike": await cmdUnlike(remaining); break;
+            case "repost": await cmdRepost(remaining); break;
+            case "unrepost": await cmdUnrepost(remaining); break;
+            case "follow": await cmdFollow(remaining); break;
+            case "unfollow": await cmdUnfollow(remaining); break;
+            case "followers": await cmdFollowers(remaining, opts); break;
+            case "following": await cmdFollowing(remaining, opts); break;
+            case "lists": await cmdLists(remaining, opts); break;
+            case "list-timeline": await cmdListTimeline(remaining, opts); break;
+            case "add": await cmdAdd(remaining); break;
+            case "reply": await cmdReply(remaining); break;
+            case "quote": await cmdQuote(remaining); break;
+            case "thread-posts": await cmdThreadPosts(remaining); break;
+            default:
+                console.error(`Unknown command: ${subcommand}`);
+                printHelp();
+                process.exit(1);
         }
-        break;
-    case "replies": await cmdReplies(remaining, opts); break;
-    case "user": await cmdUser(remaining, opts); break;
-    case "user-posts": await cmdUserPosts(remaining, opts); break;
-    case "home": await cmdHome(remaining, opts); break;
-    case "mentions": await cmdMentions(remaining, opts); break;
-    case "likes": await cmdLikes(remaining, opts); break;
-    case "search": await cmdSearch(remaining, opts); break;
-    case "like": await cmdLike(remaining); break;
-    case "unlike": await cmdUnlike(remaining); break;
-    case "repost": await cmdRepost(remaining); break;
-    case "unrepost": await cmdUnrepost(remaining); break;
-    case "follow": await cmdFollow(remaining); break;
-    case "unfollow": await cmdUnfollow(remaining); break;
-    case "followers": await cmdFollowers(remaining, opts); break;
-    case "following": await cmdFollowing(remaining, opts); break;
-    case "lists": await cmdLists(remaining, opts); break;
-    case "list-timeline": await cmdListTimeline(remaining, opts); break;
-    case "add": await cmdAdd(remaining); break;
-    case "reply": await cmdReply(remaining); break;
-    case "quote": await cmdQuote(remaining); break;
-    case "thread-posts": await cmdThreadPosts(remaining); break;
-    default:
-        console.error(`Unknown command: ${subcommand}`);
-        printHelp();
+    } catch (err) {
+        console.error(`Error: ${err}`);
         process.exit(1);
+    }
 }
+
+main();
