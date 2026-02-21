@@ -263,7 +263,7 @@ function parseGlobalOpts(args: string[]): { opts: GlobalOpts; remaining: string[
 // ── Help ───────────────────────────────────────────────────────
 
 function printHelp(): void {
-    console.log(`clawbsky — Bluesky CLI (X/Twitter-like experience)
+    console.log(`clawbsky — Bluesky CLI (Powerful social media experience)
 
 READING:
   clawbsky read <uri>              Read a post with full metadata

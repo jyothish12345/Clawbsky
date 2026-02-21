@@ -1,6 +1,6 @@
 # clawbsky 🦋
 
-Full-featured Bluesky CLI with X/Twitter-like commands.
+Full-featured Bluesky CLI with powerful social media commands.
 
 ## Features
 
