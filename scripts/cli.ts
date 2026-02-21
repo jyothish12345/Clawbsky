@@ -30,6 +30,16 @@ const DEFAULT_OPTS: GlobalOpts = {
 
 // ── MIME helpers ────────────────────────────────────────────────
 
+// ── Utilities ──────────────────────────────────────────────────
+
+function fixHandle(handle: string): string {
+    const h = handle.replace("@", "");
+    if (!h.includes(".") && !h.includes(":") && !h.includes("did:")) {
+        return h + ".bsky.social";
+    }
+    return h;
+}
+
 const MIME_MAP: Record<string, string> = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -278,6 +288,7 @@ TIMELINES:
   clawbsky home -n 20              Home timeline (feed)
   clawbsky mentions -n 10          Your mentions
   clawbsky likes <handle> -n 10    User's liked posts
+  clawbsky notifications -n 20     All notifications (alias: n)
 
 SEARCH:
   clawbsky search "query" -n 10     Search posts
@@ -300,6 +311,15 @@ FOLLOWING:
   clawbsky unfollow <handle>        Unfollow user
   clawbsky followers <handle> -n 20   List followers
   clawbsky following <handle> -n 20   List following
+
+MODERATION:
+  clawbsky block <handle>           Block a user
+  clawbsky unblock <handle>         Unblock a user
+  clawbsky mute <handle>            Mute a user
+  clawbsky unmute <handle>          Unmute a user
+
+MISC:
+  clawbsky whoami                   Show current session info
 
 LISTS:
   clawbsky lists                   Your lists
@@ -444,7 +464,7 @@ async function cmdReplies(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: User ─────────────────────────────────────────────
 
 async function cmdUser(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "");
+    const handle = fixHandle(args[0] || "");
     if (!handle) {
         console.error("Usage: clawbsky user <handle>");
         process.exit(1);
@@ -484,7 +504,7 @@ async function cmdUser(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: User Posts ─────────────────────────────────────────
 
 async function cmdUserPosts(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "");
+    const handle = fixHandle(args[0] || "");
     if (!handle) {
         console.error("Usage: clawbsky user-posts <handle> [-n count]");
         process.exit(1);
@@ -555,12 +575,14 @@ async function cmdHome(args: string[], opts: GlobalOpts): Promise<void> {
 
 // ── CMD: Mentions ─────────────────────────────────────────
 
-async function cmdMentions(args: string[], opts: GlobalOpts): Promise<void> {
+// ── CMD: Notifications ─────────────────────────────────────
+
+async function cmdNotifications(args: string[], opts: GlobalOpts): Promise<void> {
     const { agent, login } = await import("./agent.ts");
     await login();
 
     try {
-        const notifications = await agent.listNotifications({ limit: opts.count });
+        const notifications = await agent.listNotifications({ limit: opts.count, cursor: opts.cursor });
 
         if (opts.json) {
             console.log(JSON.stringify(notifications.data.notifications, null, 2));
@@ -568,14 +590,27 @@ async function cmdMentions(args: string[], opts: GlobalOpts): Promise<void> {
         }
 
         for (const notif of notifications.data.notifications) {
-            if (notif.reason === "mention" || notif.reason === "reply") {
-                console.log(`@${notif.author.handle}: ${notif.reason}`);
-                if (notif.record) {
-                    const record = notif.record as any;
-                    console.log(`  ${record.text}`);
-                }
-                console.log("");
+            const author = notif.author;
+            const handle = author.handle;
+            const reason = notif.reason;
+
+            let action = "";
+            switch (reason) {
+                case "like": action = "liked your post"; break;
+                case "repost": action = "reposted your post"; break;
+                case "follow": action = "started following you"; break;
+                case "mention": action = "mentioned you"; break;
+                case "reply": action = "replied to your post"; break;
+                case "quote": action = "quoted your post"; break;
+                default: action = reason;
             }
+
+            console.log(`@${handle} ${action} (${new Date(notif.indexedAt).toLocaleString()})`);
+            if (notif.record && (notif.reason === "mention" || notif.reason === "reply" || notif.reason === "quote")) {
+                const record = notif.record as any;
+                if (record.text) console.log(`  ${record.text}`);
+            }
+            console.log("");
         }
     } catch (err) {
         console.error(`Error: ${err}`);
@@ -586,7 +621,7 @@ async function cmdMentions(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: Likes ─────────────────────────────────────────────
 
 async function cmdLikes(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "");
+    const handle = fixHandle(args[0] || "");
     if (!handle) {
         console.error("Usage: clawbsky likes <handle> [-n count]");
         process.exit(1);
@@ -778,7 +813,7 @@ async function cmdUnrepost(args: string[]): Promise<void> {
 // ── CMD: Follow ─────────────────────────────────────────────
 
 async function cmdFollow(args: string[]): Promise<void> {
-    const handle = args[0]?.replace("@", "");
+    const handle = fixHandle(args[0] || "");
     if (!handle) {
         console.error("Usage: clawbsky follow <handle>");
         process.exit(1);
@@ -799,7 +834,7 @@ async function cmdFollow(args: string[]): Promise<void> {
 // ── CMD: Unfollow ─────────────────────────────────────────────
 
 async function cmdUnfollow(args: string[]): Promise<void> {
-    const handle = args[0]?.replace("@", "");
+    const handle = fixHandle(args[0] || "");
     if (!handle) {
         console.error("Usage: clawbsky unfollow <handle>");
         process.exit(1);
@@ -832,10 +867,117 @@ async function cmdUnfollow(args: string[]): Promise<void> {
     }
 }
 
+// ── Moderation Commands ──────────────────────────────────────────
+
+async function cmdBlock(args: string[]): Promise<void> {
+    const handle = fixHandle(args[0] || "");
+    if (!handle) {
+        console.error("Usage: clawbsky block <handle>");
+        process.exit(1);
+    }
+
+    const { agent, login } = await import("./agent.ts");
+    await login();
+
+    try {
+        const profile = await agent.getProfile({ actor: handle });
+        await agent.app.bsky.graph.block.create(
+            { repo: agent.session!.did },
+            {
+                subject: profile.data.did,
+                createdAt: new Date().toISOString()
+            }
+        );
+        console.log(`✅ Blocked @${handle}`);
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        process.exit(1);
+    }
+}
+
+async function cmdUnblock(args: string[]): Promise<void> {
+    const handle = fixHandle(args[0] || "");
+    if (!handle) {
+        console.error("Usage: clawbsky unblock <handle>");
+        process.exit(1);
+    }
+
+    const { agent, login } = await import("./agent.ts");
+    await login();
+
+    try {
+        const profile = await agent.getProfile({ actor: handle });
+        const blockUri = profile.data.viewer?.blocking;
+        if (!blockUri) {
+            console.error(`You are not blocking @${handle}`);
+            process.exit(1);
+        }
+
+        const rkey = blockUri.split("/").pop();
+        if (!rkey) throw new Error("Invalid block URI");
+
+        await agent.app.bsky.graph.block.delete({
+            repo: agent.session!.did,
+            rkey: rkey
+        });
+        console.log(`✅ Unblocked @${handle}`);
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        process.exit(1);
+    }
+}
+
+async function cmdMute(args: string[]): Promise<void> {
+    const handle = fixHandle(args[0] || "");
+    if (!handle) {
+        console.error("Usage: clawbsky mute <handle>");
+        process.exit(1);
+    }
+
+    const { agent, login } = await import("./agent.ts");
+    await login();
+
+    try {
+        await agent.mute(handle);
+        console.log(`✅ Muted @${handle}`);
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        process.exit(1);
+    }
+}
+
+async function cmdUnmute(args: string[]): Promise<void> {
+    const handle = fixHandle(args[0] || "");
+    if (!handle) {
+        console.error("Usage: clawbsky unmute <handle>");
+        process.exit(1);
+    }
+
+    const { agent, login } = await import("./agent.ts");
+    await login();
+
+    try {
+        await agent.unmute(handle);
+        console.log(`✅ Unmuted @${handle}`);
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        process.exit(1);
+    }
+}
+
+// ── Misc Commands ───────────────────────────────────────────────
+
+async function cmdWhoAmI(): Promise<void> {
+    const { agent, login } = await import("./agent.ts");
+    await login();
+    console.log(`Logged in as: @${agent.session!.handle} (${agent.session!.did})`);
+    console.log(`Email: ${agent.session!.email || "N/A"}`);
+}
+
 // ── CMD: Followers ─────────────────────────────────────────
 
 async function cmdFollowers(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "");
+    const handle = fixHandle(args[0] || "");
     if (!handle) {
         console.error("Usage: clawbsky followers <handle> [-n count]");
         process.exit(1);
@@ -865,7 +1007,7 @@ async function cmdFollowers(args: string[], opts: GlobalOpts): Promise<void> {
 // ── CMD: Following ─────────────────────────────────────────
 
 async function cmdFollowing(args: string[], opts: GlobalOpts): Promise<void> {
-    const handle = args[0]?.replace("@", "");
+    const handle = fixHandle(args[0] || "");
     if (!handle) {
         console.error("Usage: clawbsky following <handle> [-n count]");
         process.exit(1);
@@ -1219,7 +1361,9 @@ async function main() {
             case "user": await cmdUser(remaining, opts); break;
             case "user-posts": await cmdUserPosts(remaining, opts); break;
             case "home": await cmdHome(remaining, opts); break;
-            case "mentions": await cmdMentions(remaining, opts); break;
+            case "mentions": await cmdNotifications(remaining, opts); break; // alias for mentions
+            case "notifications":
+            case "n": await cmdNotifications(remaining, opts); break;
             case "likes": await cmdLikes(remaining, opts); break;
             case "search": await cmdSearch(remaining, opts); break;
             case "like": await cmdLike(remaining); break;
@@ -1230,6 +1374,11 @@ async function main() {
             case "unfollow": await cmdUnfollow(remaining); break;
             case "followers": await cmdFollowers(remaining, opts); break;
             case "following": await cmdFollowing(remaining, opts); break;
+            case "block": await cmdBlock(remaining); break;
+            case "unblock": await cmdUnblock(remaining); break;
+            case "mute": await cmdMute(remaining); break;
+            case "unmute": await cmdUnmute(remaining); break;
+            case "whoami": await cmdWhoAmI(); break;
             case "lists": await cmdLists(remaining, opts); break;
             case "list-timeline": await cmdListTimeline(remaining, opts); break;
             case "add":
