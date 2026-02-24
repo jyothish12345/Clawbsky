@@ -1,15 +1,18 @@
 ---
 name: clawbsky
-version: 1.1.0
+version: "1.1.0"
 description: Advanced Bluesky CLI with support for media (images/video), thread creation, and automated growth tools like non-mutual following cleanup.
 homepage: https://github.com/jyothish12345/Clawbsky
-requires:
-  env:
-    - BLUESKY_HANDLE
-    - BLUESKY_APP_PASSWORD
-  bins:
-    - ffmpeg
-    - ffprobe
+metadata:
+  openclaw:
+    requires:
+      env:
+        - BLUESKY_HANDLE
+        - BLUESKY_APP_PASSWORD
+      bins:
+        - ffmpeg
+        - ffprobe
+    primaryEnv: BLUESKY_APP_PASSWORD
 ---
 
 # 🦞 clawbsky
