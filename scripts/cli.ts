@@ -278,6 +278,9 @@ function parseGlobalOpts(args: string[]): { opts: GlobalOpts; remaining: string[
 function printHelp(): void {
     console.log(`clawbsky — Bluesky CLI (Powerful social media experience)
 
+SETUP:
+  clawbsky login                   Configure your Bluesky credentials
+
 READING:
   clawbsky read <uri>              Read a post with full metadata
   clawbsky thread <uri>            Read full conversation thread
@@ -1636,6 +1639,8 @@ async function main() {
             case "reply": await cmdReply(remaining); break;
             case "quote": await cmdQuote(remaining); break;
             case "thread-posts": await cmdThreadPosts(remaining); break;
+            case "login":
+            case "configure": await cmdLogin(); break;
             default:
                 console.error(`Unknown command: ${subcommand}`);
                 printHelp();
@@ -1645,6 +1650,26 @@ async function main() {
         console.error(`Error: ${err}`);
         process.exit(1);
     }
+}
+
+async function cmdLogin(): Promise<void> {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    console.log("🔒 Bluesky CLI Setup");
+    const handle = await rl.question("Handle (e.g. yourname.bsky.social): ");
+    const password = await rl.question("App Password (from bsky.app): ");
+    rl.close();
+
+    if (!handle || !password) {
+        console.error("Error: Handle and Password are required.");
+        process.exit(1);
+    }
+
+    const envPath = path.join(process.cwd(), ".env");
+    const content = `BLUESKY_HANDLE="${handle.trim()}"\nBLUESKY_APP_PASSWORD="${password.trim()}"\n`;
+
+    fs.writeFileSync(envPath, content);
+    console.log(`✅ Credentials saved to ${envPath}`);
+    console.log("You can now use clawbsky commands!");
 }
 
 main();

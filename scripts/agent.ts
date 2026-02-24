@@ -1,4 +1,7 @@
 import { BskyAgent } from "@atproto/api";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 const agent = new BskyAgent({ service: "https://bsky.social" });
 

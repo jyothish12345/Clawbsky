@@ -17,10 +17,9 @@ Advanced, professional Bluesky CLI for power users and automation.
    ```bash
    npm install
    ```
-2. Set your credentials (use an **App Password**):
+2. Configure your account:
    ```bash
-   export BLUESKY_HANDLE="yourname.bsky.social"
-   export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+   npx tsx scripts/cli.ts login
    ```
 3. Run the CLI:
    ```bash
