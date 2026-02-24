@@ -1,127 +1,62 @@
-# clawbsky 🦋
+# clawbsky 🦞🦋
 
-Full-featured Bluesky CLI with powerful social media commands.
+Advanced, professional Bluesky CLI for power users and automation. 
 
-## Features
+## 🚀 Key Features
 
-- ✅ **Post** — text, images (up to 4), videos
-- ✅ **Engage** — reply, quote, like, repost, thread
-- ✅ **Moderate** — block, mute, notifications
-- ✅ **Graph** — follow/unfollow, followers/following, profile info
-- ✅ **Lists** — view your lists and list timelines
-- ✅ **Search** — posts and hashtags
-- ✅ **UX** — handle auto-completion (`@user` -> `user.bsky.social`)
-- ✅ **Engagement** — like, repost, reply, quote
-- ✅ **Social** — follow, unfollow, followers, following
-- ✅ **Lists** — manage and view list timelines
-- ✅ **Threads** — create connected multi-post threads
-- ✅ **Rich Text** — @mentions and links auto-detected
-- ✅ **Video Aspect Ratio** — automatic detection
-- ✅ **Output Options** — JSON, plain text, pagination
+- ✅ **Rich Media** — Post images (up to 4) and videos with automatic metadata detection.
+- ✅ **Growth Tools** — Clean up non-mutual follows and auto-follow niche communities.
+- ✅ **Thread Engine** — Create long-form threads automatically from multiple text blocks.
+- ✅ **Smart UX** — Handle auto-completion (`@user` -> `user.bsky.social`) and rich-text facet detection.
+- ✅ **Moderation** — Comprehensive block, mute, and notification management.
+- ✅ **Discovery** — Deep search for posts, hashtags, and users.
 
-## Quick Start
+## 📦 Quick Start
 
-```bash
-cd clawbsky
-npm install
-export BLUESKY_HANDLE="yourname.bsky.social"
-export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
-npx tsx scripts/cli.ts --help
-```
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Set your credentials (use an **App Password**):
+   ```bash
+   export BLUESKY_HANDLE="yourname.bsky.social"
+   export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+   ```
+3. Run the CLI:
+   ```bash
+   npx tsx scripts/cli.ts --help
+   ```
 
-Generate an App Password at: https://bsky.app/settings/app-passwords
+## 🛠 Commands
 
-## Commands
+### Growth & Maintenance
+- `unfollow-non-mutuals [-n 50]` — Identify and unfollow accounts that don't follow you back.
+- `follow-all <query> [-n 20]` — Search for users by keyword and follow them automatically.
+- `follow-domain [-n 50]` — Follow users who share your same handle domain (great for community building).
 
-### Reading
-```bash
-clawbsky read <uri>              # Read a post
-clawbsky thread <uri>            # Read thread
-clawbsky replies <uri> -n 20     # List replies
-clawbsky user <handle>           # Profile info
-clawbsky user-posts <handle> -n 20  # User's posts
-```
+### Posting & Media
+- `post "Text" [images/video...]` — Create a post with optional media.
+- `thread "Part 1" "Part 2" ...` — Create a multi-post thread.
+- `quote <uri> "My thoughts"` — Quote-post another user.
+- `reply <uri> "Great post!"` — Reply to a post.
 
-### Timelines
-```bash
-clawbsky home -n 20              # Home timeline
-clawbsky mentions -n 10          # Your mentions
-clawbsky likes <handle> -n 10    # User's likes
-```
+### Reading & Search
+- `home [-n 20]` — View your timeline.
+- `mentions [-n 10]` — Check your notifications.
+- `search "query"` — Search for posts or hashtags.
+- `user <handle>` — Inspect a profile's metadata.
 
-### Mod & Graph
-```bash
-clawbsky notifications                   # View all interactions (alias: n)
-clawbsky block <handle>                  # Block user
-clawbsky mute <handle>                   # Mute user
-clawbsky follow <handle>                 # Follow
-clawbsky follow-all "AI Enthusiast"     # Search and follow everyone matching
-clawbsky whoami                          # Show active account info
-```
+## 🛡 Safety & Ethics
 
-### Search
-```bash
-clawbsky search "query" -n 10    # Search posts
-clawbsky search "#hashtag"       # Search hashtags
-```
+Clawbsky is designed for **responsible automation**. 
+- **Confirmation Prompts**: Large batch operations (>100 follows/unfollows) require manual confirmation.
+- **Rate Limiting**: Built-in 1s delay between follows to prevent API spam flags.
+- **Best Practice**: Use this tool for periodic maintenance, not for aggressive aggressive "follow/unfollow" tactics.
 
-### Posting
-```bash
-clawbsky post "text" [media...]           # New post
-clawbsky reply <uri> "text"            # Reply
-clawbsky quote <uri> "text" [media...] # Quote
-clawbsky thread "p1" "p2" "p3"...     # Thread
-```
-
-### Engagement
-```bash
-clawbsky like <uri>              # Like
-clawbsky unlike <uri>            # Unlike
-clawbsky repost <uri>            # Repost
-clawbsky unrepost <uri>          # Unrepost
-```
-
-### Social
-```bash
-clawbsky follow <handle>         # Follow
-clawbsky unfollow <handle>       # Unfollow
-clawbsky followers <handle> -n 20   # Followers
-clawbsky following <handle> -n 20   # Following
-```
-
-### Lists
-```bash
-clawbsky lists                   # Your lists
-clawbsky list-timeline <id> -n 20   # List posts
-```
-
-### Output Options
-```bash
---json      # JSON output
---plain     # Plain text
--n <count>  # Results count (default: 10)
---cursor    # Pagination
-```
-
-## Examples
-
-```bash
-clawbsky home -n 20
-clawbsky user joy.bsky.social
-clawbsky search "AI news"
-clawbsky like at://did:plc:xxx/app.bsky.feed.post/xxx
-clawbsky follow joy.bsky.social
-clawbsky thread "First post" "Second post" "Third!"
-clawbsky post "Sunset!" sunset.jpg --alt "Beautiful orange sunset"
-clawbsky reply at://... "Great take!"
-```
-
-## Security
-
-- 🔒 Uses App Passwords only
-- 🔒 No credentials stored locally
-- 🔒 Connects to official Bluesky endpoints
+## ⚙️ Advanced
+- `--json`: Raw data for piping.
+- `--plain`: No emojis or formatting for headless logs.
+- `--dry-run`: Preview changes without executing.
 
 ---
-
-Built with [@atproto/api](https://github.com/bluesky-social/atproto)
+Built for the AT Protocol community. 🦞

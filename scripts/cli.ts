@@ -12,6 +12,7 @@ import {
     type AtpBasics,
 } from "@atproto/api";
 import ffmpeg from "fluent-ffmpeg";
+import readline from "node:readline/promises";
 
 // ── Global Options ───────────────────────────────────────────────
 
@@ -312,6 +313,7 @@ FOLLOWING:
   clawbsky unfollow <handle>        Unfollow user
   clawbsky followers <handle> -n 20   List followers
   clawbsky following <handle> -n 20   List following
+  clawbsky unfollow-non-mutuals -n 10 Unfollow a specific number of non-mutuals
 
 MODERATION:
   clawbsky block <handle>           Block a user
@@ -331,7 +333,7 @@ LISTS:
 OUTPUT:
   --json              JSON output
   --plain             Plain text, no formatting
-  -n <count>          Number of results (default: 10)
+  -n <count>          Number of results/limit (default: 10)
   --cursor <val>      Pagination cursor
 
 EXAMPLES:
@@ -339,7 +341,8 @@ EXAMPLES:
   clawbsky user joy.bsky.social
   clawbsky search "AI news"
   clawbsky like at://...
-  clawbsky follow joy.bsky.social`);
+  clawbsky follow joy.bsky.social
+  clawbsky unfollow-non-mutuals -n 50`);
 }
 
 // ── CMD: Read Post ─────────────────────────────────────────────
@@ -1018,6 +1021,15 @@ async function cmdWhoAmI(): Promise<void> {
 }
 
 async function autoFollow(agent: any, query: string, target: number): Promise<void> {
+    if (target > 100) {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const answer = await rl.question(`⚠️  You are about to follow ${target} users. Mass following can lead to account suspension. Continue? (y/N): `);
+        rl.close();
+        if (answer.toLowerCase() !== "y") {
+            console.log("Aborted.");
+            return;
+        }
+    }
     console.log(`Auto-following up to ${target} users for "${query}"...`);
 
     let followed = 0;
@@ -1157,6 +1169,110 @@ async function cmdFollowing(args: string[], opts: GlobalOpts): Promise<void> {
         }
     } catch (err) {
         console.error(`Error: ${err}`);
+        process.exit(1);
+    }
+}
+
+// ── CMD: Unfollow Non-Mutuals ─────────────────────────────────
+
+async function cmdUnfollowNonMutuals(args: string[], opts: GlobalOpts): Promise<void> {
+    const { agent, login } = await import("./agent.ts");
+    await login();
+
+    const myDid = agent.session!.did;
+    const targetLimit = opts.count; // Use global count option
+
+    console.log(`🔍 Identifying non-mutuals (limit: ${targetLimit})...`);
+
+    let cursor: string | undefined;
+    const nonMutuals: any[] = [];
+    let totalFollowsChecked = 0;
+
+    try {
+        // 1. Traverse follows to find non-mutuals
+        while (nonMutuals.length < targetLimit) {
+            const res = await agent.getFollows({
+                actor: myDid,
+                cursor,
+                limit: 100,
+            });
+
+            if (!res.data.follows || res.data.follows.length === 0) break;
+
+            for (const follow of res.data.follows) {
+                if (nonMutuals.length >= targetLimit) break;
+
+                totalFollowsChecked++;
+                if (!follow.viewer?.followedBy) {
+                    nonMutuals.push(follow);
+                }
+            }
+
+            cursor = res.data.cursor;
+            process.stdout.write(`\rScanned ${totalFollowsChecked} follows, found ${nonMutuals.length}/${targetLimit} non-mutuals...`);
+            if (!cursor) break;
+        }
+        process.stdout.write("\n");
+
+        if (nonMutuals.length === 0) {
+            console.log("✨ All your follows are mutual! Nothing to cleanup.");
+            return;
+        }
+
+        console.log(`⚠️ Found ${nonMutuals.length} accounts that do not follow you back.`);
+
+        const isDryRun = args.includes("--dry-run");
+
+        if (!isDryRun && nonMutuals.length > 100) {
+            const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+            const answer = await rl.question(`⚠️  You are about to unfollow ${nonMutuals.length} users. Mass unfollowing can lead to account flags. Continue? (y/N): `);
+            rl.close();
+            if (answer.toLowerCase() !== "y") {
+                console.log("Aborted.");
+                return;
+            }
+        }
+        if (isDryRun) {
+            console.log("\n[DRY RUN] The following accounts would be unfollowed:");
+            for (const user of nonMutuals) {
+                console.log(`- @${user.handle}${user.displayName ? ` (${user.displayName})` : ""}`);
+            }
+            console.log("\nTo perform the unfollow, run without --dry-run");
+            return;
+        }
+
+        console.log(`\n🚀 Starting unfollow process for ${nonMutuals.length} accounts...`);
+        let count = 0;
+        for (const user of nonMutuals) {
+            const followUri = user.viewer?.following;
+            if (!followUri) continue;
+
+            const rkey = followUri.split("/").pop();
+            if (!rkey) continue;
+
+            try {
+                await agent.app.bsky.graph.follow.delete({
+                    repo: myDid,
+                    rkey: rkey
+                });
+                count++;
+                console.log(`[${count}/${nonMutuals.length}] ✅ Unfollowed @${user.handle}`);
+
+                if (count < nonMutuals.length) {
+                    await new Promise(r => setTimeout(r, 500));
+                }
+            } catch (err: any) {
+                console.warn(`\n❌ Failed to unfollow @${user.handle}: ${err.message}`);
+                if (err.message.toLowerCase().includes("rate limit")) {
+                    console.log("Stopped due to rate limiting.");
+                    break;
+                }
+            }
+        }
+
+        console.log(`\nDone! Cleaned up ${count} non-mutual follows.`);
+    } catch (err) {
+        console.error(`\nError: ${err}`);
         process.exit(1);
     }
 }
@@ -1420,6 +1536,9 @@ async function cmdThreadPosts(args: string[]): Promise<void> {
     let parentUri: string | undefined;
     let parentCid: string | undefined;
 
+
+
+
     for (let i = 0; i < args.length; i++) {
         const text = args[i];
         const rich = parseRichText(text);
@@ -1500,6 +1619,7 @@ async function main() {
             case "unrepost": await cmdUnrepost(remaining); break;
             case "follow": await cmdFollow(remaining); break;
             case "unfollow": await cmdUnfollow(remaining); break;
+            case "unfollow-non-mutuals": await cmdUnfollowNonMutuals(remaining, opts); break;
             case "followers": await cmdFollowers(remaining, opts); break;
             case "following": await cmdFollowing(remaining, opts); break;
             case "block": await cmdBlock(remaining); break;

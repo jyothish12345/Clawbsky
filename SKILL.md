@@ -1,6 +1,6 @@
 ---
 name: clawbsky
-description: Full-featured Bluesky CLI. Post text, images, and videos. Follow users, like/repost, search threads, and manage lists.
+description: Advanced Bluesky CLI with support for media (images/video), thread creation, and automated growth tools like non-mutual following cleanup.
 homepage: https://github.com/jyothish12345/Clawbsky
 requires:
   env:
@@ -11,153 +11,84 @@ requires:
     - ffprobe
 ---
 
-# clawbsky
+# 🦞 clawbsky
 
-Full-featured Bluesky CLI with powerful social media commands.
+A full-featured, professional Bluesky CLI designed for power users and automation. 
 
-## Setup
+## ✨ Key Features
 
+- **Media Support**: Post images and videos with automatic metadata/aspect ratio detection.
+- **Growth Tools**: Identify and unfollow accounts that don't follow you back (`unfollow-non-mutuals`).
+- **Thread Management**: Create long threads automatically from multiple text strings.
+- **Search & Explore**: Deep search for posts, users, and hashtags.
+- **Moderation**: Quick block, mute, and notification management.
+
+## 🚀 Setup
+
+1. **Get an App Password**: Go to [Bluesky Settings](https://bsky.app/settings/app-passwords) and create a new App Password. **NEVER** use your main account password.
+2. **Install**:
+   ```bash
+   npm install
+   ```
+3. **Configure**:
+   ```bash
+   export BLUESKY_HANDLE="yourname.bsky.social"
+   export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+   ```
+
+## 🛠 Commands
+
+### Growth & Maintenance
 ```bash
-cd clawbsky
-npm install
-export BLUESKY_HANDLE="yourname.bsky.social"
-export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+clawbsky unfollow-non-mutuals -n 50 # Unfollow top 50 non-mutuals
+clawbsky follow-all "Query" -n 20   # Auto-follow users matching a topic
 ```
 
-Generate an App Password at: https://bsky.app/settings/app-passwords
-
-## Commands
+### Posting & Threads
+```bash
+clawbsky post "Text" [media...]          # Create a post
+clawbsky thread "Part 1" "Part 2" ...     # Create a multi-post thread
+clawbsky quote <uri> "My thoughts"      # Quote a post
+```
 
 ### Reading
-
 ```bash
-clawbsky read <uri>              # Read a post with full metadata
-clawbsky thread <uri>            # Read full conversation thread
-clawbsky replies <uri> -n 20    # List replies to a post
-clawbsky user <handle>           # Show user profile info
-clawbsky user-posts <handle> -n 20  # User's recent posts
+clawbsky home -n 20              # View your timeline
+clawbsky user <handle>           # Inspect a profile
+clawbsky user-posts <handle>     # View user's recent activity
+clawbsky thread <uri>            # Read a full conversation branch
 ```
 
-### Timelines
-
+### Engagement & Moderation
 ```bash
-clawbsky home -n 20              # Home timeline (feed)
-clawbsky mentions -n 10          # Your mentions
-clawbsky likes <handle> -n 10    # User's liked posts
+clawbsky like/repost <uri>       # Engage with content
+clawbsky block/mute <handle>     # Manage your boundaries
+clawbsky notifications           # Check recent interactions
 ```
 
-### Search
+## 💡 Advanced Usage
 
-```bash
-clawbsky search "query" -n 10    # Search posts
-clawbsky search "#hashtag"       # Search hashtags
-```
+### Global Options
+- `--json`: Get raw data for piping to other tools.
+- `--plain`: Disable emojis and formatting for cleaner logs.
+- `-n <count>`: Limit results (default: 10).
+- `--dry-run`: Preview actions (like unfollowing) without executing.
 
-### Posting
+## 🛡 Safety & Ethics
 
-```bash
-clawbsky post "text" [media...]           # Create a post
-clawbsky reply <uri> "text"              # Reply to a post
-clawbsky quote <uri> "text" [media...]   # Quote post
-clawbsky thread "post1" "post2"...       # Create thread
-```
+Clawbsky provides powerful automation tools. To protect your account and the Bluesky community:
 
-### Moderation & Growth
+1. **Be Human**: Do not use `follow-all` to search and follow thousands of users daily. This is considered spam and will lead to an **account ban**.
+2. **Respect Limits**: Use `unfollow-non-mutuals` for periodic maintenance, not for "follow/unfollow" churning.
+3. **App Passwords**: Only use App Passwords. If you suspect your credentials have been compromised, revoke the App Password immediately in your Bluesky settings.
+4. **Rate Limiting**: The tool includes built-in delays (1s/follow) to prevent hitting API limits. Do not attempt to disable these.
 
-```bash
-clawbsky block <handle>           # Block a user
-clawbsky mute <handle>            # Mute a user
-clawbsky notifications -n 20      # All notifications (alias: n)
-clawbsky follow-all "AI Enthusiast" # Search and follow matching users automatically
-```
+*Responsibility for account actions lies solely with the user.*
 
-### Engagement
+### Automatic Logic
+- **Handle Completion**: `@username` or `username` automatically resolves to `username.bsky.social`.
+- **Rich Text**: Mentions and links are auto-detected and facet-encoded for the AT Protocol.
+- **Video Processing**: Automatically polls the Bluesky video service until processing completes.
 
-```bash
-clawbsky like <uri>              # Like a post
-clawbsky unlike <uri>            # Unlike a post
-clawbsky repost <uri>            # Repost
-clawbsky unrepost <uri>          # Undo repost
-```
-
-### Following
-
-```bash
-clawbsky follow <handle>         # Follow user
-clawbsky unfollow <handle>       # Unfollow user
-clawbsky followers <handle> -n 20   # List followers
-clawbsky following <handle> -n 20   # List following
-```
-
-### Lists
-
-```bash
-clawbsky lists                   # Your lists
-clawbsky list-timeline <list-id> -n 20  # Posts from a list
-```
-
-### Output Options
-
-```bash
---json              # JSON output for raw data piping
---plain             # Plain text mode (removes emojis/formatting)
--n <count>          # Number of results (default: 10)
---cursor <val>      # Pagination cursor for deep history
-```
-
-## Usage Examples
-
-```bash
-# Read timeline
-clawbsky home -n 20
-
-# View profile
-clawbsky user joy.bsky.social
-
-# Search
-clawbsky search "AI news"
-
-# Like a post
-clawbsky like at://did:plc:xxx/app.bsky.feed.post/xxx
-
-# Follow someone
-clawbsky follow joy.bsky.social
-
-# Create a thread
-clawbsky thread "First post" "Second post" "Third post!"
-
-# Post with image
-clawbsky post "Check this out!" photo.jpg --alt "Description"
-
-# Reply to a post
-clawbsky reply at://... "Great post!"
-
-# Quote with media
-clawbsky quote at://... "My thoughts" screenshot.png
-```
-
-## Rich Text
-
-@mentions and links are automatically detected and made clickable:
-
-```bash
-clawbsky post "@joy.bsky.social check this! https://bsky.app"
-```
-
-## Video Aspect Ratio
-
-Videos are automatically checked for aspect ratio:
-
-```bash
-clawbsky post "Watch this" video.mp4
-# Output: Video: 1080x1920 (9:16) - Vertical video detected
-```
-
-## Handle Auto-completion
-
-Clawbsky automatically handles handle completion. If you provide a handle without a domain, it defaults to `.bsky.social`. It also ignores leading `@`.
-
-```bash
-clawbsky user @joy
-# Resolves to joy.bsky.social
-```
+---
+*Built for the AT Protocol community.*

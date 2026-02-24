@@ -1,13 +1,29 @@
-node_modules
+# Dependencies
+node_modules/
+dist/
+build/
+.env
+
+# Logs
 *.log
-*.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Test outputs and temp files
+domain_search.json
+search_test.json
+test_output.txt
+*.tmp
+
+# Media (Ignore local test assets)
 *.mp4
 *.png
 *.jpg
 *.jpeg
 *.gif
 *.webp
-*.txt
-.DS_Store
-dist
-build
