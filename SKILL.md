@@ -1,5 +1,6 @@
 ---
 name: clawbsky
+version: 1.1.0
 description: Advanced Bluesky CLI with support for media (images/video), thread creation, and automated growth tools like non-mutual following cleanup.
 homepage: https://github.com/jyothish12345/Clawbsky
 requires:
@@ -32,8 +33,7 @@ A full-featured, professional Bluesky CLI designed for power users and automatio
    ```
 3. **Configure**:
    ```bash
-   export BLUESKY_HANDLE="yourname.bsky.social"
-   export BLUESKY_APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"
+   clawbsky login
    ```
 
 ## 🛠 Commands
