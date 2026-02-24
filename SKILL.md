@@ -1,6 +1,6 @@
 ---
 name: clawbsky
-version: "1.1.0"
+version: "1.1.1"
 description: Advanced Bluesky CLI with support for media (images/video), thread creation, and automated growth tools like non-mutual following cleanup.
 homepage: https://github.com/jyothish12345/Clawbsky
 metadata:
