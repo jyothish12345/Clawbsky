@@ -21,14 +21,14 @@ export function parseRichText(text: string): {
     facets: RichText["facets"];
 } {
     const rt = new RichText({ text });
-    
+
     // Detect mentions (e.g., @joy.bsky.social)
     const mentionRegex = /@([a-zA-Z0-9._-]+(?:\.[a-zA-Z0-9._-]+)+)/g;
     let match;
     while ((match = mentionRegex.exec(text)) !== null) {
         const handle = match[1];
         const did = `did:plc:unknown`; // Would need resolution in production
-        
+
         rt.facets?.push({
             index: {
                 byteStart: match.index,
@@ -66,6 +66,31 @@ export function parseRichText(text: string): {
     };
 }
 
+// ── File Path Validation ────────────────────────────────────────
+
+/**
+ * Validates that a file path is safe to pass to external processes.
+ * Resolves to an absolute path, confirms the file exists, and rejects
+ * any path containing shell meta-characters that could enable injection.
+ */
+export function validateFilePath(filePath: string): string {
+    // Reject characters that have special meaning in shell contexts
+    const forbidden = /[;|&$`(){}[\]<>\n\r\0"'\\]/;
+    if (forbidden.test(filePath)) {
+        throw new Error(
+            `Invalid file path — contains forbidden characters: ${filePath}`
+        );
+    }
+
+    const resolved = path.resolve(filePath);
+
+    if (!fs.existsSync(resolved)) {
+        throw new Error(`File not found: ${resolved}`);
+    }
+
+    return resolved;
+}
+
 // ── Video Aspect Ratio Detection ─────────────────────────────────
 
 export interface VideoMetadata {
@@ -83,8 +108,16 @@ export interface VideoMetadata {
  * This prevents "stretched" videos on Bluesky by ensuring proper metadata.
  */
 export async function getVideoMetadata(filePath: string): Promise<VideoMetadata> {
+    // Validate path before passing to ffprobe
+    let safePath: string;
+    try {
+        safePath = validateFilePath(filePath);
+    } catch (e) {
+        return Promise.reject(e);
+    }
+
     return new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(filePath, (err, metadata) => {
+        ffmpeg.ffprobe(safePath, (err, metadata) => {
             if (err) {
                 reject(new Error(`ffprobe failed: ${err.message}`));
                 return;
@@ -145,7 +178,7 @@ export async function postThread(
 
     for (let i = 0; i < thread.length; i++) {
         const post = thread[i];
-        
+
         // Build record
         const record: import("@atproto/api").AppBskyFeedPost.Record = {
             text: post.text,

@@ -29,6 +29,27 @@ const DEFAULT_OPTS: GlobalOpts = {
     count: 10,
 };
 
+// ── File Path Validation ────────────────────────────────────────
+
+/**
+ * Validates that a file path is safe to pass to external processes.
+ * Resolves to an absolute path, confirms the file exists, and rejects
+ * any path containing shell meta-characters.
+ */
+function validateFilePath(filePath: string): string {
+    const forbidden = /[;|&$`(){}[\]<>\n\r\0"'\\]/;
+    if (forbidden.test(filePath)) {
+        throw new Error(
+            `Invalid file path — contains forbidden characters: ${filePath}`
+        );
+    }
+    const resolved = path.resolve(filePath);
+    if (!fs.existsSync(resolved)) {
+        throw new Error(`File not found: ${resolved}`);
+    }
+    return resolved;
+}
+
 // ── MIME helpers ────────────────────────────────────────────────
 
 // ── Utilities ──────────────────────────────────────────────────
@@ -80,8 +101,16 @@ interface VideoMetadata {
 }
 
 async function getVideoMetadata(filePath: string): Promise<VideoMetadata> {
+    // Validate path before passing to ffprobe to prevent injection
+    let safePath: string;
+    try {
+        safePath = validateFilePath(filePath);
+    } catch (e) {
+        return Promise.reject(e);
+    }
+
     return new Promise((resolve, reject) => {
-        ffmpeg.ffprobe(filePath, (err, metadata) => {
+        ffmpeg.ffprobe(safePath, (err, metadata) => {
             if (err) {
                 reject(new Error(`ffprobe failed: ${err.message}`));
                 return;
@@ -141,9 +170,10 @@ function parseRichText(text: string): { text: string; facets?: RichText["facets"
 // ── Video upload ───────────────────────────────────────────────
 
 async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
+    const validatedPath = validateFilePath(filePath);
     const { agent, login } = await import("./agent.ts");
     await login();
-    const fileBytes = fs.readFileSync(filePath);
+    const fileBytes = fs.readFileSync(validatedPath);
 
     const serviceAuth = await agent.com.atproto.server.getServiceAuth({
         aud: `did:web:video.bsky.app`,
@@ -240,9 +270,10 @@ async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
 // ── Image upload ───────────────────────────────────────────────
 
 async function uploadImage(filePath: string, mime: string): Promise<BlobRef> {
+    const validatedPath = validateFilePath(filePath);
     const { agent, login } = await import("./agent.ts");
     await login();
-    const fileBytes = fs.readFileSync(filePath);
+    const fileBytes = fs.readFileSync(validatedPath);
     const response = await agent.uploadBlob(fileBytes, { encoding: mime });
     return response.data.blob;
 }
@@ -1667,8 +1698,24 @@ async function cmdLogin(): Promise<void> {
     const envPath = path.join(process.cwd(), ".env");
     const content = `BLUESKY_HANDLE="${handle.trim()}"\nBLUESKY_APP_PASSWORD="${password.trim()}"\n`;
 
-    fs.writeFileSync(envPath, content);
+    // Write with restrictive permissions (owner read/write only — not world-readable)
+    fs.writeFileSync(envPath, content, { mode: 0o600 });
+
+    // Ensure .env is listed in .gitignore so credentials are never committed
+    const gitignorePath = path.join(process.cwd(), ".gitignore");
+    if (fs.existsSync(gitignorePath)) {
+        const gitignore = fs.readFileSync(gitignorePath, "utf8");
+        if (!gitignore.split("\n").some(line => line.trim() === ".env")) {
+            fs.appendFileSync(gitignorePath, "\n.env\n");
+            console.log("✅ Added .env to .gitignore");
+        }
+    } else {
+        fs.writeFileSync(gitignorePath, ".env\n", { mode: 0o644 });
+        console.log("✅ Created .gitignore with .env");
+    }
+
     console.log(`✅ Credentials saved to ${envPath}`);
+    console.log("⚠️  Keep this file private — never commit it to version control.");
     console.log("You can now use clawbsky commands!");
 }
 

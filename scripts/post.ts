@@ -6,6 +6,7 @@ import {
     type AppBskyFeedPost,
     type BlobRef,
 } from "@atproto/api";
+import { validateFilePath } from "./utils.ts";
 
 // ── Flags ───────────────────────────────────────────────────────
 
@@ -44,9 +45,10 @@ function isVideo(mime: string): boolean {
 // ── Video upload (recommended flow via video.bsky.app) ─────────
 
 async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
+    const validatedPath = validateFilePath(filePath);
     const { login } = await import("./agent.ts");
     const agent = await login();
-    const fileBytes = fs.readFileSync(filePath);
+    const fileBytes = fs.readFileSync(validatedPath);
 
     // 1. Get service auth token scoped for video upload service
     const serviceAuth = await agent.com.atproto.server.getServiceAuth({
@@ -118,9 +120,10 @@ async function uploadVideo(filePath: string, mime: string): Promise<BlobRef> {
 // ── Image upload ───────────────────────────────────────────────
 
 async function uploadImage(filePath: string, mime: string): Promise<BlobRef> {
+    const validatedPath = validateFilePath(filePath);
     const { login } = await import("./agent.ts");
     const agent = await login();
-    const fileBytes = fs.readFileSync(filePath);
+    const fileBytes = fs.readFileSync(validatedPath);
     const response = await agent.uploadBlob(fileBytes, { encoding: mime });
     return response.data.blob;
 }

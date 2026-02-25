@@ -1,0 +1,27 @@
+# ClawHub Ignore File
+# Exclude these from the skill upload to speed up security scans
+
+# Dependencies
+node_modules/
+
+# Git history (this is usually the largest part of the repo)
+.git/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Large archives
+*.tgz
+*.zip
+*.tar.gz
+
+# Environment files
+.env
+.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+dist/
+build/
